@@ -10,14 +10,6 @@ interface Tile {
   category: string;
 }
 
-interface Word {
-  tiles: Tile[];
-  word: string;
-  pts: number;
-  hinted: boolean;
-  originalPts: number;
-}
-
 interface Message {
   text: string;
   type: "success" | "error" | "warn" | "info";
@@ -314,9 +306,7 @@ const WORD_LIST = [
 
 const WORD_SET = new Set(WORD_LIST);
 
-function getWordSet() {
-  return Promise.resolve(WORD_SET);
-}
+
 
 function buildWordFromTiles(tiles: Tile[]): string {
   return tiles.map(t => getTileSound(t)).join("").toLowerCase();
@@ -345,7 +335,6 @@ const EXTRA_SOUND_WORDS = {
   "oar":   ["oar","boar","soar","roar","board","hoard","hoarse","coarse","aboard","cupboard"],
   "tch":   ["watch","catch","match","patch","scratch","stretch","ditch","witch","fetch","sketch","notch","latch","hutch","Dutch","stitch","switch","batch","hatch","snatch","wretch"],
   "ck":    ["back","black","block","brick","check","click","clock","crack","deck","dock","duck","flick","flock","hack","kick","knock","lock","luck","neck","nick","pack","pick","puck","rack","rick","rock","sack","sick","slack","slick","smack","snack","sock","stack","stick","stock","stuck","thick","tick","track","trick","truck","tuck","whack","wreck"],
-  "tch":   ["catch","fetch","hatch","latch","match","notch","patch","pitch","ratch","sketch","snatch","stitch","stretch","switch","watch","witch","wretch"],
   "wh":    ["what","when","where","which","while","whip","whirl","whisper","whistle","white","whole","whom","whose","why","wheel","wheat","whack","whale","whine","whiff"],
   "ph":    ["phone","photo","phrase","graph","alpha","elephant","orphan","trophy","triumph","dolphin","phantom","prophet","typhoon","nephew","sphere","alphabet","emphasis","philosophy","physician","pharmacy","phenomenon","physique","symphony"],
   "ng":    ["ring","sing","king","wing","thing","bring","string","spring","swing","fling","cling","along","among","belong","strong","tongue","young","song","long","wrong","gang","hang","rang","sang","bang","rang","clang","slang","tong","prong","gong","throng","sponge","plunge","lunge","cringe","fringe","hinge","singe","tinge"],
@@ -374,8 +363,8 @@ const EXTRA_SOUND_WORDS = {
 };
 
 // Build map from main word list
-const SOUND_WORDS_MAP = (() => {
-  const map = {};
+const SOUND_WORDS_MAP: Record<string, string[]> = (() => {
+  const map: Record<string, string[]> = {};
   // Seed with extra curated words first
   for (const [key, words] of Object.entries(EXTRA_SOUND_WORDS)) {
     map[key] = [...words];

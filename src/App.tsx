@@ -1,5 +1,67 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
+// ─── TYPE DEFINITIONS ────────────────────────────────────────────────────────
+interface Tile {
+  id: number;
+  text: string;
+  display: string;
+  variants: string[] | null;
+  activeVariant: number;
+  category: string;
+}
+
+interface Word {
+  tiles: Tile[];
+  word: string;
+  pts: number;
+  hinted: boolean;
+  originalPts: number;
+}
+
+interface Message {
+  text: string;
+  type: "success" | "error" | "warn" | "info";
+}
+
+interface WordGroup {
+  word: string;
+  tiles: Tile[];
+  id: number;
+}
+
+interface FormedWord {
+  word: string;
+  tiles: Tile[];
+  id: number;
+  hinted?: boolean;
+  pts: number;
+  originalPts?: number;
+}
+
+interface Winner {
+  owner: string;
+  words: WordGroup[];
+}
+
+interface ThemeConfig {
+  label: string;
+  emoji: string;
+  desc: string;
+  preview: string[];
+  pageBg: string;
+  pageText: string;
+  pageBgImage: boolean;
+  tileBg: (cat: any, selected: boolean) => string;
+  tileBorder: (cat: any, selected: boolean) => string;
+  tileText: (cat: any, selected: boolean) => string;
+  tileShadow: (cat: any, selected: boolean, highlighted: boolean) => string;
+  labelColor: (cat: any) => string;
+  cardBg: string;
+  cardBorder: string;
+  headerBg: string;
+  headerBorder: string;
+}
+
 // ─── TILE DEFINITIONS ────────────────────────────────────────────────────────
 const TILE_CATEGORIES = {
   open_vowel: {
@@ -69,7 +131,7 @@ const TILE_CATEGORIES = {
 };
 
 // For dual tiles like "ei/ey", extract both variants
-function parseTile(text, cat, id) {
+function parseTile(text: string, cat: string, id: number): Tile {
   if (text.includes("/")) {
     const variants = text.split("/");
     return { id, text, display: text, variants, activeVariant: 0, category: cat };
@@ -78,11 +140,11 @@ function parseTile(text, cat, id) {
 }
 
 // Build the full 108-tile deck
-function buildDeck() {
-  const deck = [];
+function buildDeck(): Tile[] {
+  const deck: Tile[] = [];
   let id = 0;
   Object.entries(TILE_CATEGORIES).forEach(([cat, data]) => {
-    data.tiles.forEach((text) => {
+    data.tiles.forEach((text: string) => {
       deck.push(parseTile(text, cat, id++));
     });
   });
@@ -90,17 +152,17 @@ function buildDeck() {
 }
 
 // Get the active sound of a tile (respects chosen variant for dual tiles)
-function getTileSound(tile) {
+function getTileSound(tile: Tile): string {
   if (tile.variants) return tile.variants[tile.activeVariant];
   return tile.text.replace(/-/g, "");
 }
 
 // Global tile ID counter — always increases, guarantees uniqueness across recycled decks
 let _globalTileId = 10000;
-function freshTileId() { return _globalTileId++; }
+function freshTileId(): number { return _globalTileId++; }
 
 // Fisher-Yates shuffle
-function shuffle(arr) {
+function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -256,16 +318,16 @@ function getWordSet() {
   return Promise.resolve(WORD_SET);
 }
 
-function buildWordFromTiles(tiles) {
+function buildWordFromTiles(tiles: Tile[]): string {
   return tiles.map(t => getTileSound(t)).join("").toLowerCase();
 }
 
-function checkWordInSet(word) {
+function checkWordInSet(word: string): boolean {
   const w = word.toLowerCase();
   return WORD_SET.has(w) || SESSION_CUSTOM_WORDS.has(w);
 }
 
-function addCustomWord(word) {
+function addCustomWord(word: string): void {
   SESSION_CUSTOM_WORDS.add(word.toLowerCase());
 }
 
@@ -331,14 +393,14 @@ const SOUND_WORDS_MAP = (() => {
   return map;
 })();
 
-function getWordsForSound(sound) {
+function getWordsForSound(sound: string): string[] {
   const key = sound.split("/")[0].toLowerCase().replace(/-/g, "");
   return SOUND_WORDS_MAP[key] || SOUND_WORDS_MAP[sound.toLowerCase()] || [];
 }
 
 // CSS-animated smoke word — each word is a self-contained animated div
 let _smokeId = 0;
-function makeSmokeWord(word, originX, originY, color) {
+function makeSmokeWord(word: string, originX: number, originY: number, color: string): { id: number; word: string; originX: number; originY: number; drift: number; duration: number; fontSize: number; color: string; rise: number; delay: number; born: number } {
   const drift = (Math.random() - 0.5) * 50;      // gentle horizontal offset
   const duration = 2.8 + Math.random() * 1.6;     // 2.8s–4.4s float time
   const fontSize = 12 + Math.floor(Math.random() * 7);
@@ -347,7 +409,7 @@ function makeSmokeWord(word, originX, originY, color) {
   return { id: _smokeId++, word, originX, originY, drift, duration, fontSize, color, rise, delay, born: Date.now() };
 }
 
-function SmokeWord({ p, onDone }) {
+function SmokeWord({ p, onDone }: any) {
   // Remove from DOM after animation completes
   useEffect(() => {
     const t = setTimeout(onDone, (p.duration + 0.3) * 1000);
@@ -377,7 +439,7 @@ function SmokeWord({ p, onDone }) {
   );
 }
 
-function WordSmokeCanvas({ words, onWordDone }) {
+function WordSmokeCanvas({ words, onWordDone }: any) {
   if (words.length === 0) return null;
   return (
     <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 9999, overflow: "hidden" }}>
@@ -401,7 +463,7 @@ const DEFAULT_SETTINGS = {
 };
 
 // ─── TILE THEMES ──────────────────────────────────────────────────────────────
-const TILE_THEMES = {
+const TILE_THEMES: Record<string, ThemeConfig> = {
   neon: {
     label: "Neon",
     emoji: "🌙",
@@ -678,7 +740,7 @@ const AudioEngine = (() => {
   };
 })();
 // ─── TILE COMPONENT─────────────────────────────────────
-function Tile({ tile, selected, highlighted, autoPulse, onClick, onCycleVariant, onHover, disabled, small, theme, animated = true, showLabel = true }) {
+function Tile({ tile, selected, highlighted, autoPulse, onClick, onCycleVariant, onHover, disabled, small, theme, animated = true, showLabel = true }: any) {
   const cat = TILE_CATEGORIES[tile.category];
   const size = small ? 52 : 64;
   const isDual = !!(tile.variants && tile.variants.length > 1);
@@ -784,29 +846,29 @@ function Tile({ tile, selected, highlighted, autoPulse, onClick, onCycleVariant,
 
 
 function MahjongPhonicsGame({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
-  const [deck, setDeck] = useState(() => shuffle(buildDeck()));
-  const [hand, setHand] = useState([]);
-  const [selected, setSelected] = useState([]);
-  const [words, setWords] = useState([]);
-  const [message, setMessage] = useState({ text: "", type: "" });
-  const [round, setRound] = useState(1);
-  const [score, setScore] = useState(0);
-  const [deckIndex, setDeckIndex] = useState(0);
-  const [animating, setAnimating] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const [invalidShake, setInvalidShake] = useState(false);
-  const [showRules, setShowRules] = useState(false);
-  const [dictReady, setDictReady] = useState(false);
-  const [gameOver, setGameOver] = useState(false);       // true when no words possible with 13 tiles
-  const [allWordsScored, setAllWordsScored] = useState([]); // cumulative across rounds for end screen
-  const [challengeWord, setChallengeWord] = useState(null); // { word, tiles } waiting for user to accept/reject
+  const [deck, setDeck] = useState<Tile[]>(() => shuffle(buildDeck()));
+  const [hand, setHand] = useState<Tile[]>([]);
+  const [selected, setSelected] = useState<Tile[]>([]);
+  const [words, setWords] = useState<WordGroup[]>([]);
+  const [message, setMessage] = useState<Message>({ text: "", type: "info" });
+  const [round, setRound] = useState<number>(1);
+  const [score, setScore] = useState<number>(0);
+  const [deckIndex, setDeckIndex] = useState<number>(0);
+  const [animating, setAnimating] = useState<boolean>(false);
+  const [checking, setChecking] = useState<boolean>(false);
+  const [invalidShake, setInvalidShake] = useState<boolean>(false);
+  const [showRules, setShowRules] = useState<boolean>(false);
+  const [dictReady, setDictReady] = useState<boolean>(false);
+  const [gameOver, setGameOver] = useState<boolean>(false);       // true when no words possible with 13 tiles
+  const [allWordsScored, setAllWordsScored] = useState<WordGroup[]>([]); // cumulative across rounds for end screen
+  const [challengeWord, setChallengeWord] = useState<WordGroup | null>(null); // { word, tiles } waiting for user to accept/reject
   const loadedWordSet = useRef(null);
   const msgTimeout = useRef(null);
 
   // ── WORD SMOKE ─────────────────────────────────────────────────────────────
   const smokeEnabled = settings.smokeEffect;
-  const [cheerKey, setCheerKey] = useState(0); // increment to trigger a new cheer
-  const [smokeWords, setSmokeWords] = useState([]);
+  const [cheerKey, setCheerKey] = useState<number>(0); // increment to trigger a new cheer
+  const [smokeWords, setSmokeWords] = useState<WordGroup[]>([]);
   const spawnTimerRef = useRef(null);
   const hoverTileRef = useRef(null);
   const usedRecentlyRef = useRef(new Set());
@@ -867,13 +929,13 @@ function MahjongPhonicsGame({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
     AudioEngine.setSfxVolume(settings.soundEffects);
   }, [settings.soundEffects]);
 
-  const showMsg = (text, type = "info") => {
+  const showMsg = (text: string, type: "info" | "warn" | "error" | "success" = "info"): void => {
     if (msgTimeout.current) clearTimeout(msgTimeout.current);
     setMessage({ text, type });
     msgTimeout.current = setTimeout(() => setMessage({ text: "", type: "" }), 3000);
   };
 
-  const toggleTile = (tile) => {
+  const toggleTile = (tile: Tile) => {
     if (settings.soundEffects > 0) AudioEngine.play("tileClick");
     setSelected(prev => {
       const already = prev.findIndex(t => t.id === tile.id);
@@ -902,7 +964,7 @@ function MahjongPhonicsGame({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
   };
 
   // Score a validated word (extracted so challenge flow can reuse it)
-  const scoreWord = (word, tiles) => {
+  const scoreWord = (word: string, tiles: Tile[]): void => {
     if (settings.soundEffects > 0) AudioEngine.play("wordCorrect");
     const basePts = tiles.reduce((acc, t) => {
       const catBonus = { specials: 5, r_vowel: 4, double_vowel: 3, others: 2, main_consonants: 1, open_vowel: 1, closed_vowel: 1 };
@@ -949,9 +1011,9 @@ function MahjongPhonicsGame({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, settings.autoMakeWord, dictReady, animating]);
   // Works on both hand tiles and already-selected tiles
-  const cycleVariant = (tile) => {
+  const cycleVariant = (tile: Tile) => {
     if (settings.soundEffects > 0) AudioEngine.play("tileCycle");
-    const cycle = (t) => {
+    const cycle = (t: Tile) => {
       if (!t.variants) return t;
       if (t.id !== tile.id) return t;
       return { ...t, activeVariant: (t.activeVariant + 1) % t.variants.length };
@@ -982,14 +1044,14 @@ function MahjongPhonicsGame({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
 
   // ── HINT SYSTEM ────────────────────────────────────────────────────────────
   const MAX_HINTS = 3;
-  const [hintsLeft, setHintsLeft] = useState(MAX_HINTS);
-  const [showHint, setShowHint] = useState(false);
-  const [hintLoading, setHintLoading] = useState(false);
-  const [highlightIds, setHighlightIds] = useState(new Set());
-  const [hintUsedWords, setHintUsedWords] = useState(new Set());
-  const [hintWords, setHintWords] = useState([]); // kept for compat with autoMakeWord effect
+  const [hintsLeft, setHintsLeft] = useState<number>(MAX_HINTS);
+  const [showHint, setShowHint] = useState<boolean>(false);
+  const [hintLoading, setHintLoading] = useState<boolean>(false);
+  const [highlightIds, setHighlightIds] = useState<Set<number>>(new Set());
+  const [hintUsedWords, setHintUsedWords] = useState<Set<string>>(new Set());
+  const [hintWords, setHintWords] = useState<WordGroup[]>([]); // kept for compat with autoMakeWord effect
   // Auto-pulse: IDs of tiles gently glowing right now (ambient short-word hint)
-  const [autoPulseIds, setAutoPulseIds] = useState(new Set());
+  const [autoPulseIds, setAutoPulseIds] = useState<Set<number>>(new Set());
   const autoPulseTimerRef = useRef(null);
 
   // Score a candidate word given tile ids
@@ -1074,7 +1136,7 @@ function MahjongPhonicsGame({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
     }, 300);
   };
 
-  const highlightHintWord = (hint) => {
+  const highlightHintWord = (hint: WordGroup) => {
     setHighlightIds(new Set(hint.tileIds));
     setHintUsedWords(prev => new Set([...prev, hint.word]));
     setTimeout(() => setHighlightIds(new Set()), 3500);
@@ -1817,7 +1879,7 @@ function MahjongPhonicsGame({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
   );
 }
 
-function btnStyle(bg, darkBg, textColor) {
+function btnStyle(bg: string, darkBg: string, textColor?: string): any {
   return {
     padding: "8px 18px",
     borderRadius: 9,
@@ -1923,10 +1985,10 @@ function Modal({ title, onClose, children }) {
 }
 
 function TitleScreen({ onPlay, onPlayTimed, settings, updateSetting }) {
-  const [modal, setModal] = useState(null); // "rules" | "credits" | "settings" | null
-  const [entered, setEntered] = useState(false);
-  const [wordImport, setWordImport] = useState(""); // textarea value for bulk word import
-  const [customWordList, setCustomWordList] = useState(() => [...SESSION_CUSTOM_WORDS]); // reactive copy
+  const [modal, setModal] = useState<string | null>(null); // "rules" | "credits" | "settings" | null
+  const [entered, setEntered] = useState<boolean>(false);
+  const [wordImport, setWordImport] = useState<string>(""); // textarea value for bulk word import
+  const [customWordList, setCustomWordList] = useState<string[]>(() => [...SESSION_CUSTOM_WORDS]); // reactive copy
 
   useEffect(() => {
     setTimeout(() => setEntered(true), 80);
@@ -2496,24 +2558,24 @@ const TIME_OPTIONS = [
 
 function TimedMode({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
   // screens: "pick" | "play" | "done"
-  const [phase, setPhase] = useState("pick");
-  const [chosenTime, setChosenTime] = useState(120);
-  const [timeLeft, setTimeLeft] = useState(120);
-  const [hand, setHand] = useState([]);
-  const [deck, setDeck] = useState([]);
-  const [deckIndex, setDeckIndex] = useState(0);
-  const [selected, setSelected] = useState([]);
-  const [invalidShake, setInvalidShake] = useState(false);
-  const [wordsScored, setWordsScored] = useState([]);  // [{word, pts, tiles}]
-  const [score, setScore] = useState(0);
-  const [message, setMessage] = useState({ text: "", type: "" });
-  const [smokeWords, setSmokeWords] = useState([]);
+  const [phase, setPhase] = useState<string>("pick");
+  const [chosenTime, setChosenTime] = useState<number>(120);
+  const [timeLeft, setTimeLeft] = useState<number>(120);
+  const [hand, setHand] = useState<Tile[]>([]);
+  const [deck, setDeck] = useState<Tile[]>([]);
+  const [deckIndex, setDeckIndex] = useState<number>(0);
+  const [selected, setSelected] = useState<Tile[]>([]);
+  const [invalidShake, setInvalidShake] = useState<boolean>(false);
+  const [wordsScored, setWordsScored] = useState<FormedWord[]>([]);  // [{word, pts, tiles}]
+  const [score, setScore] = useState<number>(0);
+  const [message, setMessage] = useState<Message>({ text: "", type: "info" });
+  const [smokeWords, setSmokeWords] = useState<WordGroup[]>([]);
   const smokeEnabled = settings.smokeEffect;
-  const [timedCheerKey, setTimedCheerKey] = useState(0);
-  const [highlightIds, setHighlightIds] = useState(new Set());
-  const [hintWords, setHintWords] = useState([]);
-  const [showHint, setShowHint] = useState(false);
-  const [challengeWord, setChallengeWord] = useState(null); // { word, tiles } — unknown word awaiting player decision
+  const [timedCheerKey, setTimedCheerKey] = useState<number>(0);
+  const [highlightIds, setHighlightIds] = useState<Set<number>>(new Set());
+  const [hintWords, setHintWords] = useState<WordGroup[]>([]);
+  const [showHint, setShowHint] = useState<boolean>(false);
+  const [challengeWord, setChallengeWord] = useState<WordGroup | null>(null); // { word, tiles } — unknown word awaiting player decision
 
   const timerRef = useRef(null);
   const spawnTimerRef = useRef(null);
@@ -2587,14 +2649,14 @@ function TimedMode({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
   const timerColor = pct > 0.5 ? "#9EF01A" : pct > 0.25 ? "#F4A261" : "#E84855";
 
   // ── Message ─────────────────────────────────────────────────────────────────
-  const showMsg = (text, type = "info") => {
+  const showMsg = (text: string, type: "info" | "warn" | "error" | "success" = "info"): void => {
     if (msgTimeout.current) clearTimeout(msgTimeout.current);
     setMessage({ text, type });
     msgTimeout.current = setTimeout(() => setMessage({ text: "", type: "" }), 2500);
   };
 
   // ── Tile interactions ────────────────────────────────────────────────────────
-  const toggleTile = (tile) => {
+  const toggleTile = (tile: Tile) => {
     if (settings.soundEffects > 0) AudioEngine.play("tileClick");
     setSelected(prev => {
       const already = prev.findIndex(t => t.id === tile.id);
@@ -2604,9 +2666,9 @@ function TimedMode({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
     });
   };
 
-  const cycleVariant = (tile) => {
+  const cycleVariant = (tile: Tile) => {
     if (settings.soundEffects > 0) AudioEngine.play("tileCycle");
-    const cycle = t => (!t.variants || t.id !== tile.id) ? t
+    const cycle = (t: Tile) => (!t.variants || t.id !== tile.id) ? t
       : { ...t, activeVariant: (t.activeVariant + 1) % t.variants.length };
     setHand(prev => prev.map(cycle));
     setSelected(prev => prev.map(cycle));
@@ -2721,7 +2783,7 @@ function TimedMode({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
     if (found.length === 0) showMsg("No obvious words found — try cycling tiles!", "warn");
   };
 
-  const highlightHint = (hint) => {
+  const highlightHint = (hint: WordGroup) => {
     if (settings.soundEffects > 0) AudioEngine.play("hintReveal");
     setHighlightIds(new Set(hint.tileIds));
     setTimeout(() => setHighlightIds(new Set()), 3000);
@@ -3226,8 +3288,8 @@ function CheerBurst() {
 
 // ─── SINGLE PLAYER SUB-MENU ───────────────────────────────────────────────────
 function SinglePlayerMenu({ onEndless, onTimed, onClassic, onBack }) {
-  const [entered, setEntered] = useState(false);
-  const [hovered, setHovered]   = useState(null);
+  const [entered, setEntered] = useState<boolean>(false);
+  const [hovered, setHovered] = useState<string | null>(null);
 
   useEffect(() => { setTimeout(() => setEntered(true), 60); }, []);
 
@@ -3453,7 +3515,7 @@ const HAND_SIZE = 13;
 
 // Check whether `tiles` (14 tiles) can be partitioned entirely into valid words.
 // Returns the partition (array of word-groups) or null.
-function findWinningPartition(tiles) {
+function findWinningPartition(tiles: Tile[]): WordGroup[] | null {
   const tileSounds = tiles.map(tile =>
     tile.variants
       ? tile.variants.map(v => ({ sound: v, tile }))
@@ -3507,7 +3569,7 @@ function findWinningPartition(tiles) {
 
 // Bot AI: pick up discard if it helps form a word, otherwise draw.
 // Then discard the tile least useful to completing words.
-function botTakeTurn(hand, discardTop) {
+function botTakeTurn(hand: Tile[], discardTop: Tile | null): { newHand: Tile[]; discarded: Tile; tookDiscard: boolean } {
   const catBonus = { specials:5, r_vowel:4, double_vowel:3, others:2, main_consonants:1, open_vowel:1, closed_vowel:1 };
 
   // Score a hand: sum of tiles that appear in at least one valid word
@@ -3557,9 +3619,9 @@ function botTakeTurn(hand, discardTop) {
 }
 
 function ClassicMode({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
-  const [phase, setPhase]       = useState("lobby");
-  const [botCount, setBotCount] = useState(1);
-  const [difficulty, setDifficulty] = useState("normal"); // "easy"|"normal"|"hard"|"challenging"
+  const [phase, setPhase] = useState<string>("lobby");
+  const [botCount, setBotCount] = useState<number>(1);
+  const [difficulty, setDifficulty] = useState<string>("normal"); // "easy"|"normal"|"hard"|"challenging"
 
   // ── Difficulty config ─────────────────────────────────────────────────────────
   const DIFF = {
@@ -3571,33 +3633,33 @@ function ClassicMode({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
   const diff = DIFF[difficulty];
 
   // ── Game state ───────────────────────────────────────────────────────────────
-  const [playerHand, setPlayerHand]   = useState([]);
-  const [botHands, setBotHands]       = useState([[], [], []]);
-  const [discardPile, setDiscardPile] = useState([]);
-  const [deckTiles, setDeckTiles]     = useState([]);
-  const [deckIdx, setDeckIdx]         = useState(0);
-  const [turn, setTurn]               = useState("player");
-  const [turnPhase, setTurnPhase]     = useState("draw");
-  const [drawnTile, setDrawnTile]     = useState(null);
-  const [selectedDiscard, setSelectedDiscard] = useState(null);
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [message, setMessage]         = useState({ text: "", type: "" });
-  const [winner, setWinner]           = useState(null);
-  const [cheerKey, setCheerKey]       = useState(0);
-  const [botThinking, setBotThinking] = useState(false);
-  const [winPartition, setWinPartition] = useState(null);
-  const [canClaimDiscard, setCanClaimDiscard] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [botTimeLeft, setBotTimeLeft] = useState(null);
-  const [hintsLeft, setHintsLeft]     = useState(0);   // set on startGame
-  const [hintTileId, setHintTileId]   = useState(null); // tile to highlight as hint
+  const [playerHand, setPlayerHand] = useState<Tile[]>([]);
+  const [botHands, setBotHands] = useState<Tile[][]>([[], [], []]);
+  const [discardPile, setDiscardPile] = useState<Tile[]>([]);
+  const [deckTiles, setDeckTiles] = useState<Tile[]>([]);
+  const [deckIdx, setDeckIdx] = useState<number>(0);
+  const [turn, setTurn] = useState<string>("player");
+  const [turnPhase, setTurnPhase] = useState<string>("draw");
+  const [drawnTile, setDrawnTile] = useState<Tile | null>(null);
+  const [selectedDiscard, setSelectedDiscard] = useState<Tile | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [message, setMessage] = useState<Message>({ text: "", type: "info" });
+  const [winner, setWinner] = useState<Winner | null>(null);
+  const [cheerKey, setCheerKey] = useState<number>(0);
+  const [botThinking, setBotThinking] = useState<boolean>(false);
+  const [winPartition, setWinPartition] = useState<WordGroup[] | null>(null);
+  const [canClaimDiscard, setCanClaimDiscard] = useState<boolean>(false);
+  const [timeLeft, setTimeLeft] = useState<number>(30);
+  const [botTimeLeft, setBotTimeLeft] = useState<number | null>(null);
+  const [hintsLeft, setHintsLeft] = useState<number>(0);   // set on startGame
+  const [hintTileId, setHintTileId] = useState<number | null>(null); // tile to highlight as hint
   // ── Word-forming state ───────────────────────────────────────────────────────
-  const [formedWords, setFormedWords]   = useState([]);     // [{word, tiles, id}]
-  const [wbSelected, setWbSelected]     = useState([]);     // tiles picked for builder
-  const [handTab, setHandTab]           = useState("hand"); // "hand" | "words"
-  const [fusedIds, setFusedIds]         = useState(new Set()); // tile ids in formedWords
-  const [invalidWbShake, setInvalidWbShake] = useState(false);
-  const [newFusedWordId, setNewFusedWordId] = useState(null); // for animation
+  const [formedWords, setFormedWords] = useState<WordGroup[]>([]);     // [{word, tiles, id}]
+  const [wbSelected, setWbSelected] = useState<Tile[]>([]);     // tiles picked for builder
+  const [handTab, setHandTab] = useState<string>("hand"); // "hand" | "words"
+  const [fusedIds, setFusedIds] = useState<Set<number>>(new Set()); // tile ids in formedWords
+  const [invalidWbShake, setInvalidWbShake] = useState<boolean>(false);
+  const [newFusedWordId, setNewFusedWordId] = useState<number | null>(null); // for animation
 
   const msgRef    = useRef(null);
   const deckRef   = useRef([]);
@@ -3607,13 +3669,13 @@ function ClassicMode({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
   const botTimerRef = useRef(null);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
-  const showMsg = (text, type = "info") => {
+  const showMsg = (text: string, type: "info" | "warn" | "error" | "success" = "info"): void => {
     if (msgRef.current) clearTimeout(msgRef.current);
     setMessage({ text, type });
     msgRef.current = setTimeout(() => setMessage({ text:"", type:"" }), 3500);
   };
 
-  const drawFromDeck = () => {
+  const drawFromDeck = (): Tile => {
     const deck = deckRef.current;
     let idx = deckIdxRef.current;
     if (idx >= deck.length) idx = 0;
@@ -3821,7 +3883,7 @@ function ClassicMode({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
   };
 
   // ── Word builder: break apart a fused word (return tiles to hand) ────────────
-  const wbBreakWord = (wordId) => {
+  const wbBreakWord = (wordId: number) => {
     const group = formedWords.find(g => g.id === wordId);
     if (!group) return;
     AudioEngine.play("tileCycle");
@@ -3864,7 +3926,7 @@ function ClassicMode({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
     showMsg(`💡 Hint: try using "${getTileSound(bestTile)}" in a word!`, "info");
     setTimeout(() => setHintTileId(null), 3000);
   };
-  const advanceTurn = (current) => {
+  const advanceTurn = (current: string) => {
     const order = ["player", ...Array.from({ length: botCount }, (_, i) => `bot${i}`)];
     const next = order[(order.indexOf(current) + 1) % order.length];
     setTurn(next); setTurnPhase("draw");
@@ -3973,9 +4035,9 @@ function ClassicMode({ onBackToTitle, settings = DEFAULT_SETTINGS }) {
   }, [turn, phase]);
 
   // ── Cycle variant ─────────────────────────────────────────────────────────────
-  const cycleVariant = (tile) => {
+  const cycleVariant = (tile: Tile) => {
     AudioEngine.play("tileCycle");
-    const cycle = t => (!t.variants || t.id !== tile.id) ? t
+    const cycle = (t: Tile) => (!t.variants || t.id !== tile.id) ? t
       : { ...t, activeVariant: (t.activeVariant + 1) % t.variants.length };
     setPlayerHand(prev => prev.map(cycle));
   };
